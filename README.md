@@ -1,8 +1,22 @@
 # Hikvision Next
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/maciej-or/hikvision_next?style=flat-square) [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/itsjustdeepred/hikvision_next?style=flat-square) [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+
+> [!NOTE]
+> This is a fork of [maciej-or/hikvision_next](https://github.com/maciej-or/hikvision_next). The upstream project has had no release since v1.1.1 (December 2024); this fork fixes several bugs that are still open upstream — see [Fixes on top of upstream](#fixes-on-top-of-upstream-v111). All credit for the original integration goes to [@maciej-or](https://github.com/maciej-or) and the upstream contributors.
 
 The Home Assistant integration for Hikvision NVRs and IP cameras. Receives and switches detection of alarm events. Provides video streams.
+
+## Fixes on top of upstream v1.1.1
+
+This fork resolves the following issues that are still open on the upstream repository:
+
+- Invalid entity IDs built from non-slugified device serial numbers (uppercase letters, hyphens, slashes) in alarm server and storage sensors. On recent Home Assistant versions this prevented those sensors from being added at all. Fixes upstream issues [#336](https://github.com/maciej-or/hikvision_next/issues/336), [#338](https://github.com/maciej-or/hikvision_next/issues/338), [#339](https://github.com/maciej-or/hikvision_next/issues/339), [#341](https://github.com/maciej-or/hikvision_next/issues/341), [#343](https://github.com/maciej-or/hikvision_next/issues/343), [#344](https://github.com/maciej-or/hikvision_next/issues/344)
+- Snapshot image entities set an entity ID with the wrong domain (`camera.` instead of `image.`), which would stop working in Home Assistant 2027.5. Fixes upstream issue [#345](https://github.com/maciej-or/hikvision_next/issues/345)
+
+Please report issues with this fork at [itsjustdeepred/hikvision_next/issues](https://github.com/itsjustdeepred/hikvision_next/issues).
+
+Development on this fork is co-authored by [Claude](https://claude.com/claude-code) (Anthropic).
 
 ## Features
 
@@ -39,13 +53,13 @@ Events must be set to alert the surveillance center in Linkage Action for Home A
 
 Creates automation that allows to take snapshots from selected cameras when an event sensor is triggered.
 
-[<img src="https://my.home-assistant.io/badges/blueprint_import.svg">](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/maciej-or/hikvision_next/blob/main/blueprints/take_pictures_on_motion_detection.yaml)
+[<img src="https://my.home-assistant.io/badges/blueprint_import.svg">](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/itsjustdeepred/hikvision_next/blob/main/blueprints/take_pictures_on_motion_detection.yaml)
 
 #### Display Sensor State On Hikvision Video
 
 Creates an automation that allows to display text overlay on a selected video stream with the state of a selected sensor. Refreshes every 15 minutes.
 
-[<img src="https://my.home-assistant.io/badges/blueprint_import.svg">](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/maciej-or/hikvision_next/blob/main/blueprints/display_sensor_state_on_hikvision_video.yaml)
+[<img src="https://my.home-assistant.io/badges/blueprint_import.svg">](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/itsjustdeepred/hikvision_next/blob/main/blueprints/display_sensor_state_on_hikvision_video.yaml)
 
 ## Preview
 
@@ -59,13 +73,17 @@ The scope supported features depends on device model, setup and firmware version
 
 ## Installation
 
-[<img src="https://my.home-assistant.io/badges/hacs_repository.svg">](https://my.home-assistant.io/redirect/hacs_repository/?owner=maciej-or&repository=hikvision_next&category=integration)
+[<img src="https://my.home-assistant.io/badges/hacs_repository.svg">](https://my.home-assistant.io/redirect/hacs_repository/?owner=itsjustdeepred&repository=hikvision_next&category=integration)
 
 ### With HACS
 
-1. This integration you will find in the default HACS store. Search for `Hikvision NVR / IP Camera` on `HACS / Integrations` page and press `Download` button
-2. on `Settings / Devices & Services` page press `+ Add Integration`
-3. Search for `Hikvision NVR / IP Camera` and add your Hikvision device using config dialog, repeat the last 2 steps for more devices
+This fork is not in the default HACS store, it must be added as a custom repository. The button above does it for you, or manually:
+
+1. on the `HACS` page, open the menu in the top right corner and select `Custom repositories`
+2. add `https://github.com/itsjustdeepred/hikvision_next` with type `Integration`
+3. search for `Hikvision NVR / IP Camera` on the `HACS` page and press `Download`
+4. on `Settings / Devices & Services` page press `+ Add Integration`
+5. search for `Hikvision NVR / IP Camera` and add your Hikvision device using config dialog, repeat the last 2 steps for more devices
 
 ### Manual
 
@@ -158,3 +176,7 @@ Download logs from `Settings / System / Logs`
 - DS-2CD2T87G2P-LSU/SL
 - DS-2DE4425IW-DE (PTZ)
 - DS-2SE4C425MWG-E/26
+
+## License
+
+The upstream project does not specify a license, which means the original code remains all rights reserved by its authors under GitHub's default terms (which permit viewing and forking on GitHub, but not relicensing). For this reason this fork does not add a license file: the original code is not ours to relicense. Modifications made in this fork are shared under the same terms as the upstream project. If the upstream author adds a license, this fork will adopt it.
