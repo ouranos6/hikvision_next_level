@@ -12,15 +12,16 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.components.switch import ENTITY_ID_FORMAT as SWITCH_ENTITY_ID_FORMAT
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN
+from .const import DEFAULT_LEGACY_EVENT_PORT, DOMAIN
 from .hikvision_device import HikvisionDevice
 from .isapi import ISAPIUnauthorizedError
+from .legacy_http import HikvisionLegacyHttpListener
 from .notifications import EventNotificationsView
 from .services import setup_services
 
@@ -42,6 +43,21 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     setup_services(hass)
     hass.http.register_view(EventNotificationsView(hass))
+    legacy_listener = HikvisionLegacyHttpListener(hass)
+    try:
+        await legacy_listener.async_start()
+    except OSError as ex:
+        _LOGGER.warning(
+            "Cannot start Hikvision legacy event listener on port %s: %s",
+            DEFAULT_LEGACY_EVENT_PORT,
+            ex,
+        )
+
+    @callback
+    def async_stop_legacy_listener(_event) -> None:
+        hass.async_create_task(legacy_listener.async_stop())
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, async_stop_legacy_listener)
 
     return True
 

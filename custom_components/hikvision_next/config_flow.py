@@ -21,6 +21,7 @@ from . import HikvisionConfigEntry
 from .const import (
     CONF_ALARM_SERVER_HOST,
     CONF_SET_ALARM_SERVER,
+    DEFAULT_LEGACY_EVENT_PORT,
     DOMAIN,
     RTSP_PORT_FORCED,
 )
@@ -57,7 +58,7 @@ class HikvisionConfigFlow(ConfigFlow, domain=DOMAIN):
         local_ip = await async_get_source_ip(self.hass)
         return self.add_suggested_values_to_schema(
             schema,
-            {CONF_ALARM_SERVER_HOST: f"http://{local_ip}:8123", **(user_input or {})},
+            {CONF_ALARM_SERVER_HOST: f"http://{local_ip}:{DEFAULT_LEGACY_EVENT_PORT}", **(user_input or {})},
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:

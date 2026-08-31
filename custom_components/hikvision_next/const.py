@@ -12,6 +12,8 @@ RTSP_PORT_FORCED: Final = "rtsp_port_forced"
 CONF_SET_ALARM_SERVER: Final = "set_alarm_server"
 CONF_ALARM_SERVER_HOST: Final = "alarm_server"
 ALARM_SERVER_PATH = "/api/hikvision"
+DEFAULT_LEGACY_EVENT_HOST: Final = "0.0.0.0"
+DEFAULT_LEGACY_EVENT_PORT: Final = 8124
 
 EVENTS_COORDINATOR: Final = "events"
 SECONDARY_COORDINATOR: Final = "secondary"
