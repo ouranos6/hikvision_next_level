@@ -41,6 +41,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Hikvision component."""
 
     setup_services(hass)
+    hass.http.register_view(EventNotificationsView(hass))
 
     return True
 
@@ -68,10 +69,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HikvisionConfigEntry) ->
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     device.pending_initialization = False
-
-    # Only initialise view once if multiple instances of integration
-    if get_first_instance_unique_id(hass) == entry.unique_id:
-        hass.http.register_view(EventNotificationsView(hass))
 
     refresh_disabled_entities_in_registry(hass, device)
 
@@ -105,12 +102,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: HikvisionConfigEntry) -
             await device.set_alarm_server("http://0.0.0.0:80", "/")
 
     return unload_ok
-
-
-def get_first_instance_unique_id(hass: HomeAssistant) -> int:
-    """Get entry unique_id for first instance of integration."""
-    entry = [entry for entry in hass.config_entries.async_entries(DOMAIN) if not entry.disabled_by][0]
-    return entry.unique_id
 
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):

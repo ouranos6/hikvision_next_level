@@ -5,7 +5,6 @@ from .isapi import (  # noqa: F401
     ISAPIUnauthorizedError,
 )
 from .models import (  # noqa: F401
-    AlertInfo,
     AnalogCamera,
     CameraStreamInfo,
     EventInfo,

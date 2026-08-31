@@ -13,19 +13,6 @@ class AlarmServer:
 
 
 @dataclass
-class AlertInfo:
-    """Holds NVR/Camera event notification info."""
-
-    channel_id: int
-    io_port_id: int
-    event_id: str
-    device_serial_no: str = field(default=None)
-    mac: str = ""
-    region_id: int = 0
-    detection_target: str = field(default=None)
-
-
-@dataclass
 class MutexIssue:
     """Holds mutually exclusive event checking info."""
 

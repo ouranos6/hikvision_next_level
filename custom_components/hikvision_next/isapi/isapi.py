@@ -31,7 +31,6 @@ from .const import (
 )
 from .models import (
     AlarmServer,
-    AlertInfo,
     AnalogCamera,
     CameraStreamInfo,
     CapabilitiesInfo,
@@ -648,49 +647,6 @@ class ISAPIClient:
     async def reboot(self):
         """Reboot device."""
         await self.request(PUT, "System/reboot", present="xml")
-
-    @staticmethod
-    def parse_event_notification(xml: str) -> AlertInfo:
-        """Parse incoming EventNotificationAlert XML message."""
-
-        # Fix for some cameras sending non html encoded data
-        xml = xml.replace("&", "&amp;")
-
-        data = xmltodict.parse(xml)
-        alert = data["EventNotificationAlert"]
-
-        event_id = alert.get("eventType")
-        if not event_id or event_id == "duration":
-            # <EventNotificationAlert version="2.0"
-            event_id = alert["DurationList"]["Duration"]["relationEvent"]
-        event_id = event_id.lower()
-
-        # handle alternate event type
-        if EVENTS_ALTERNATE_ID.get(event_id):
-            event_id = EVENTS_ALTERNATE_ID[event_id]
-
-        channel_id = int(alert.get("channelID", alert.get("dynChannelID", 0)))
-        io_port_id = int(alert.get("inputIOPortID", 0))
-        # <EventNotificationAlert version="1.0"
-        device_serial = deep_get(alert, "Extensions.serialNumber.#text")
-        # <EventNotificationAlert version="2.0"
-        mac = alert.get("macAddress")
-
-        detection_target = deep_get(alert, "DetectionRegionList.DetectionRegionEntry.detectionTarget")
-        region_id = int(deep_get(alert, "DetectionRegionList.DetectionRegionEntry.regionID", 0))
-
-        if not EVENTS[event_id]:
-            raise ValueError(f"Unsupported event {event_id}")
-
-        return AlertInfo(
-            channel_id,
-            io_port_id,
-            event_id,
-            device_serial,
-            mac,
-            region_id,
-            detection_target,
-        )
 
     async def get_camera_image(
         self,
