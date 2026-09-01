@@ -54,7 +54,7 @@ class EventNotificationsView(HomeAssistantView):
                 event.channel_id,
                 event.detection_target,
             )
-            await self._processor.async_process(event, request.remote)
+            await self._processor.async_process(event, request.remote, image=payload.image)
         except HikvisionEventError as ex:
             _LOGGER.warning("Cannot process Hikvision event: %s", ex)
         except Exception as ex:  # pylint: disable=broad-except

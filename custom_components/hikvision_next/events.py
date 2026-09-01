@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import ipaddress
 import logging
 import socket
+from enum import StrEnum
 from typing import Final
 from urllib.parse import urlparse
 from xml.parsers.expat import ExpatError
@@ -13,8 +14,9 @@ from xml.parsers.expat import ExpatError
 import xmltodict
 from requests_toolbelt.multipart import MultipartDecoder
 
-from homeassistant.const import STATE_ON, Platform
+from homeassistant.const import STATE_OFF, STATE_ON, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.entity_registry import async_get
 from homeassistant.util import slugify
 
@@ -29,6 +31,38 @@ _LOGGER = logging.getLogger(__name__)
 CONTENT_TYPE_XML: Final = ("application/xml", "text/xml")
 CONTENT_TYPE_IMAGE_JPEG: Final = "image/jpeg"
 XML_ROOT: Final = b"<EventNotificationAlert"
+
+_TARGET_ALIASES: Final[dict[str, str]] = {
+    "human": "human",
+    "person": "human",
+    "vehicle": "vehicle",
+    "car": "vehicle",
+}
+
+
+def event_image_signal(serial_no: str, channel_id: int) -> str:
+    """Return the internal dispatcher signal for one camera's event image."""
+    return f"{DOMAIN}_event_image_{slugify(serial_no.lower())}_{channel_id}"
+
+
+class HikvisionDetectionTarget(StrEnum):
+    """Canonical detection target values produced by Hikvision AI analytics."""
+
+    HUMAN = "human"
+    VEHICLE = "vehicle"
+
+
+def normalize_detection_target(raw: str | None) -> str | None:
+    """Normalize a raw Hikvision detectionTarget to a canonical lowercase value.
+
+    Known aliases such as ``person`` are mapped to ``human`` and ``car`` to
+    ``vehicle``.  Unknown values are lower-cased and passed through so they
+    never crash parsing, while still improving consistency.
+    """
+    if not raw:
+        return None
+    normalized = raw.lower().strip()
+    return _TARGET_ALIASES.get(normalized, normalized)
 
 
 class HikvisionEventError(ValueError):
@@ -74,12 +108,12 @@ class HikvisionEventPayloadParser:
         if not body:
             raise HikvisionEventPayloadError("Empty event payload")
 
-        if self._looks_like_xml(body):
-            return ParsedEventPayload(xml=self._decode_xml(body))
-
         normalized_content_type = (content_type or "").lower()
         if normalized_content_type.startswith("multipart/"):
             return self._parse_multipart(body, content_type)
+
+        if self._looks_like_xml(body):
+            return ParsedEventPayload(xml=self._decode_xml(body))
 
         raise HikvisionEventPayloadError(
             f"Unsupported event Content-Type {content_type or '<missing>'}"
@@ -163,8 +197,8 @@ class HikvisionEventParser:
             device_mac=alert.get("macAddress"),
             device_ip=alert.get("ipAddress"),
             region_id=region_id,
-            detection_target=deep_get(
-                alert, "DetectionRegionList.DetectionRegionEntry.detectionTarget"
+            detection_target=normalize_detection_target(
+                deep_get(alert, "DetectionRegionList.DetectionRegionEntry.detectionTarget")
             ),
             event_state=alert.get("eventState"),
         )
@@ -177,11 +211,30 @@ class HikvisionEventProcessor:
         """Initialize the processor."""
         self.hass = hass
 
-    async def async_process(self, event: HikvisionEvent, source_ip: str | None) -> None:
+    async def async_process(
+        self,
+        event: HikvisionEvent,
+        source_ip: str | None,
+        image: bytes | None = None,
+    ) -> None:
         """Resolve the target device and update Home Assistant."""
         device = await self._async_get_device(source_ip, event)
         self.resolve_event_channel(device, event)
+        self._store_event_image(device, event, image)
         self._trigger_sensor(device, event)
+
+    def _store_event_image(
+        self, device: HikvisionDevice, event: HikvisionEvent, image: bytes | None
+    ) -> None:
+        """Keep a supplied JPEG for the resolved camera and notify its entity."""
+        if image is None or event.channel_id == 0 or not device.get_camera_by_id(event.channel_id):
+            return
+
+        device.set_last_event_image(event.channel_id, image)
+        async_dispatcher_send(
+            self.hass,
+            event_image_signal(device.device_info.serial_no, event.channel_id),
+        )
 
     async def _async_get_device(
         self, source_ip: str | None, event: HikvisionEvent
@@ -257,14 +310,36 @@ class HikvisionEventProcessor:
 
         entity_registry = async_get(self.hass)
         entity_id = entity_registry.async_get_entity_id(Platform.BINARY_SENSOR, DOMAIN, unique_id)
+        if entity_id and (entity := self.hass.states.get(entity_id)):
+            self.hass.states.async_set(entity_id, STATE_ON, entity.attributes)
+        self._trigger_target_sensor(device, event)
+        self._fire_hass_event(device, event)
+
+    def _trigger_target_sensor(self, device: HikvisionDevice, event: HikvisionEvent) -> None:
+        """Update the matching person or vehicle binary sensor from a classified event."""
+        target = event.detection_target
+        if target not in (HikvisionDetectionTarget.HUMAN, HikvisionDetectionTarget.VEHICLE):
+            return
+        if event.channel_id == 0:
+            return
+
+        sensor_type = "person" if target == HikvisionDetectionTarget.HUMAN else "vehicle"
+        serial_no = device.device_info.serial_no.lower()
+        unique_id = f"{slugify(serial_no)}_{event.channel_id}_{sensor_type}"
+
+        entity_registry = async_get(self.hass)
+        entity_id = entity_registry.async_get_entity_id(Platform.BINARY_SENSOR, DOMAIN, unique_id)
         if not entity_id:
-            raise HikvisionEventError(f"Entity not found {entity_id}")
+            return
 
         entity = self.hass.states.get(entity_id)
         if not entity:
             return
-        self.hass.states.async_set(entity_id, STATE_ON, entity.attributes)
-        self._fire_hass_event(device, event)
+
+        is_active = (event.event_state or "").lower() == "active"
+        self.hass.states.async_set(
+            entity_id, STATE_ON if is_active else STATE_OFF, entity.attributes
+        )
 
     def _fire_hass_event(self, device: HikvisionDevice, event: HikvisionEvent) -> None:
         """Fire the existing hikvision_next_event payload."""

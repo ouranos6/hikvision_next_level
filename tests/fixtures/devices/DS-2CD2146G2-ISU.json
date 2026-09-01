@@ -197,7 +197,10 @@
                 "@min": "1",
                 "@max": "16"
               },
-              "isSupportPasswordProtection": ["true", "true"],
+              "isSupportPasswordProtection": [
+                "true",
+                "true"
+              ],
               "isIrreversible": "true",
               "salt": "3d45e398cf30552e35c756c66cc7e788b498cc316901108ab95a9af6885b6f19",
               "isSupportOnvifInfo": "true",
@@ -1008,7 +1011,10 @@
               "SVC": {
                 "enabled": "false"
               },
-              "PacketType": ["PS", "RTP"],
+              "PacketType": [
+                "PS",
+                "RTP"
+              ],
               "smoothing": "50",
               "H265Profile": "Main",
               "SmartCodec": {
@@ -1091,7 +1097,10 @@
               "SVC": {
                 "enabled": "false"
               },
-              "PacketType": ["PS", "RTP"],
+              "PacketType": [
+                "PS",
+                "RTP"
+              ],
               "smoothing": "50",
               "H265Profile": "Main"
             },
@@ -1171,7 +1180,10 @@
               "SVC": {
                 "enabled": "false"
               },
-              "PacketType": ["PS", "RTP"],
+              "PacketType": [
+                "PS",
+                "RTP"
+              ],
               "smoothing": "50",
               "H265Profile": "Main",
               "SmartCodec": {
@@ -1254,7 +1266,10 @@
               "SVC": {
                 "enabled": "false"
               },
-              "PacketType": ["PS", "RTP"],
+              "PacketType": [
+                "PS",
+                "RTP"
+              ],
               "smoothing": "50",
               "H265Profile": "Main",
               "SmartCodec": {
@@ -1838,7 +1853,10 @@
                   "SVC": {
                     "enabled": "false"
                   },
-                  "PacketType": ["PS", "RTP"],
+                  "PacketType": [
+                    "PS",
+                    "RTP"
+                  ],
                   "smoothing": "50",
                   "H265Profile": "Main",
                   "SmartCodec": {
@@ -1915,7 +1933,10 @@
                   "SVC": {
                     "enabled": "false"
                   },
-                  "PacketType": ["PS", "RTP"],
+                  "PacketType": [
+                    "PS",
+                    "RTP"
+                  ],
                   "smoothing": "50",
                   "H265Profile": "Main"
                 },
@@ -1926,6 +1947,34 @@
                 }
               }
             ]
+          }
+        }
+      },
+      "Image/channels/1/capabilities": {
+        "response": {
+          "ImageChannel": {
+            "@version": "2.0",
+            "@xmlns": "http://www.isapi.org/ver20/XMLSchema",
+            "supplementLightMode": {
+              "@opt": "off,ir"
+            },
+            "supplementLightBrightness": {
+              "@min": "1",
+              "@max": "100",
+              "@step": "1"
+            }
+          }
+        }
+      },
+      "Image/channels/1": {
+        "response": {
+          "ImageChannel": {
+            "@version": "2.0",
+            "@xmlns": "http://www.isapi.org/ver20/XMLSchema",
+            "videoInputChannelID": "1",
+            "channelName": "cam",
+            "supplementLightMode": "off",
+            "supplementLightBrightness": "50"
           }
         }
       }

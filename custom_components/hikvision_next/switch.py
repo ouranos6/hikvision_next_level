@@ -12,9 +12,11 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import slugify
 
 from . import HikvisionConfigEntry
+from .capabilities import CapabilityState, HikvisionCapabilities
 from .const import EVENTS_COORDINATOR, HOLIDAY_MODE, SECONDARY_COORDINATOR
 from .isapi import EventInfo, ISAPISetEventStateMutexError
 from .isapi.const import EVENT_IO
+from .isapi.utils import deep_get
 
 
 async def async_setup_entry(
@@ -47,7 +49,82 @@ async def async_setup_entry(
     if device.capabilities.support_holiday_mode:
         entities.append(HolidaySwitch(secondary_coordinator))
 
+    caps_registry = getattr(device, "capabilities_registry", None)
+    for camera in device.cameras:
+        caps = caps_registry.for_channel(camera.id) if caps_registry else HikvisionCapabilities()
+        if caps.motion_human_filter is CapabilityState.SUPPORTED:
+            entities.append(MotionTargetFilterSwitch(device, camera.id, "human"))
+        if caps.motion_vehicle_filter is CapabilityState.SUPPORTED:
+            entities.append(MotionTargetFilterSwitch(device, camera.id, "vehicle"))
+
     async_add_entities(entities)
+
+
+class MotionTargetFilterSwitch(SwitchEntity):
+    """Human or vehicle target filter from motion-detection configuration."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:account-filter-outline"
+
+    def __init__(self, device, camera_id: int, target: str) -> None:
+        """Initialize a capability-gated target filter switch."""
+        self._device = device
+        self._camera_id = camera_id
+        self._target = target
+        self._attr_unique_id = (
+            f"{slugify(device.device_info.serial_no.lower())}_{camera_id}_detect_{target}"
+        )
+        self.entity_id = ENTITY_ID_FORMAT.format(self._attr_unique_id)
+        self._attr_device_info = device.hass_device_info(camera_id)
+        self._attr_translation_key = f"detect_{target}"
+        self._is_on: bool | None = None
+
+    async def async_added_to_hass(self) -> None:
+        """Read the existing target selection once added."""
+        await self._async_update_value()
+        self.async_write_ha_state()
+
+    async def _async_update_value(self) -> None:
+        """Read targetType from the complete motion configuration."""
+        try:
+            target_type = deep_get(
+                await self._device.get_motion_detection(self._camera_id),
+                "MotionDetection.MotionDetectionLayout.targetType",
+            )
+            if not isinstance(target_type, str):
+                self._is_on = None
+                return
+            self._is_on = self._target in {
+                value.strip().lower() for value in target_type.split(",") if value.strip()
+            }
+        except Exception:
+            self._is_on = None
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether this target is currently selected."""
+        return self._is_on
+
+    async def _async_set_value(self, enabled: bool) -> None:
+        """Write the target filter then refresh state from ISAPI."""
+        try:
+            await self._device.set_motion_detection_target_filter(
+                self._camera_id, self._target, enabled
+            )
+            await self._async_update_value()
+            self.async_write_ha_state()
+        except Exception as ex:
+            self._device.handle_exception(
+                ex, f"Cannot set motion {self._target} filter for channel {self._camera_id}"
+            )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable this target type."""
+        await self._async_set_value(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable this target type."""
+        await self._async_set_value(False)
 
 
 class EventSwitch(CoordinatorEntity, SwitchEntity):

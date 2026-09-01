@@ -122,3 +122,11 @@ class ProtocolsInfo:
     """Holds info of supported protocols."""
 
     rtsp_port: int = 554
+
+
+@dataclass
+class PresetInfo:
+    """Holds a PTZ preset."""
+
+    token: int
+    name: str

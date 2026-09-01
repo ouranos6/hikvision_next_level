@@ -1,7 +1,10 @@
 """Fixtures for testing."""
 
 import json
+from unittest.mock import MagicMock
+
 import pytest
+import pytest_socket
 import respx
 import xmltodict
 from custom_components.hikvision_next.const import DOMAIN, CONF_SET_ALARM_SERVER, CONF_ALARM_SERVER_HOST, RTSP_PORT_FORCED
@@ -30,6 +33,33 @@ TEST_CONFIG_OUTSIDE_NETWORK = {
     CONF_HOST: "https://address.domain",
     RTSP_PORT_FORCED: 5151,
 }
+
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_fixture_setup(fixturedef):
+    """Allow Windows' event-loop socketpair while restricting network connections.
+
+    The Home Assistant test plugin blocks socket construction for every test.
+    Windows' ProactorEventLoop needs a TCP loopback socketpair merely to start,
+    so the test failed before its body executed.  Loopback-only connections keep
+    external network I/O blocked while allowing asyncio and raw listener tests.
+    """
+    if fixturedef.argname == "event_loop":
+        pytest_socket.enable_socket()
+        pytest_socket.socket_allow_hosts(["127.0.0.1"])
+    yield
+
+
+@pytest.fixture(autouse=True)
+def mock_http_server(hass: HomeAssistant):
+    """Provide the HTTP registration surface required by integration setup.
+
+    The lightweight Home Assistant fixture does not start the HTTP component,
+    while this integration intentionally registers its view at domain setup.
+    Network transport is covered separately by the raw listener tests.
+    """
+    if hass.http is None:
+        hass.http = MagicMock()
 
 
 @pytest.fixture(autouse=True)

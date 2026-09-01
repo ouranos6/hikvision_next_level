@@ -13,5 +13,42 @@
       "insufficient_permission": "[%key:common::config_flow::error::insufficient_permission%]",
       "unknown": "[%key:common::config_flow::error::unknown%]"
     }
+  },
+  "entity": {
+    "select": {
+      "supplement_light_mode": {
+        "name": "Supplement Light Mode"
+      }
+    },
+    "number": {
+      "ir__light_brightness": {
+        "name": "IR Light Brightness"
+      },
+      "white__light_brightness": {
+        "name": "White Light Brightness"
+      },
+      "motion_sensitivity": {
+        "name": "Motion Sensitivity"
+      },
+      "motion_start_delay": {
+        "name": "Motion Start Trigger Delay"
+      },
+      "motion_end_delay": {
+        "name": "Motion End Trigger Delay"
+      }
+    },
+    "image": {
+      "last_event": {
+        "name": "Last Event"
+      }
+    },
+    "switch": {
+      "detect_human": {
+        "name": "Detect Human"
+      },
+      "detect_vehicle": {
+        "name": "Detect Vehicle"
+      }
+    }
   }
 }

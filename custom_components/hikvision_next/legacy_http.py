@@ -126,7 +126,7 @@ class HikvisionLegacyHttpListener:
                 try:
                     payload = self._payload_parser.parse(body, request.content_type)
                     event = self._event_parser.parse(payload.xml)
-                    await self._processor.async_process(event, source_ip)
+                    await self._processor.async_process(event, source_ip, image=payload.image)
                 except HikvisionEventError as ex:
                     self.parse_errors += 1
                     _LOGGER.warning("Cannot process legacy Hikvision event from %s: %s", source_ip, ex)

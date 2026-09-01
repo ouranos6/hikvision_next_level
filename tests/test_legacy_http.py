@@ -24,9 +24,9 @@ class RecordingProcessor:
         """Initialize the recording processor."""
         self.calls = []
 
-    async def async_process(self, event, source_ip: str | None) -> None:
+    async def async_process(self, event, source_ip: str | None, image: bytes | None = None) -> None:
         """Record a processed event."""
-        self.calls.append((event, source_ip))
+        self.calls.append((event, source_ip, image))
 
 
 class CapturingPayloadParser(HikvisionEventPayloadParser):
@@ -172,12 +172,13 @@ async def test_legacy_listener_reuses_multipart_parser_and_retains_jpeg() -> Non
         assert len(processor.calls) == 1
         assert payload_parser.payload is not None
         assert payload_parser.payload.image == jpeg
+        assert processor.calls[0][2] == jpeg
     finally:
         await listener.async_stop()
 
 
 @pytest.mark.parametrize(
-    ("request", "status"),
+    ("raw_request", "status"),
     [
         (b"GET /api/hikvision HTTP/1.1\r\nContent-Length: 0\r\n\r\n", b"405 Method Not Allowed"),
         (b"POST /other HTTP/1.1\r\nContent-Length: 0\r\n\r\n", b"404 Not Found"),
@@ -193,12 +194,12 @@ async def test_legacy_listener_reuses_multipart_parser_and_retains_jpeg() -> Non
     ],
 )
 async def test_legacy_listener_rejects_unsupported_http_transport(
-    request: bytes, status: bytes
+    raw_request: bytes, status: bytes
 ) -> None:
     """Only the narrow Hikvision POST protocol is accepted."""
     listener, processor = await start_listener()
     try:
-        response = await send_raw(listener, request)
+        response = await send_raw(listener, raw_request)
 
         assert status in response
         assert not processor.calls

@@ -11,8 +11,15 @@ from homeassistant.core import (
 )
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import ACTION_ISAPI_REQUEST, ACTION_REBOOT, ATTR_CONFIG_ENTRY_ID, DOMAIN
+from .const import (
+    ACTION_ISAPI_REQUEST,
+    ACTION_PTZ,
+    ACTION_REBOOT,
+    ATTR_CONFIG_ENTRY_ID,
+    DOMAIN,
+)
 from .isapi import ISAPIForbiddenError, ISAPIUnauthorizedError
+from .isapi.utils import deep_get
 
 ACTION_ISAPI_REQUEST_SCHEMA = vol.Schema(
     {
@@ -20,6 +27,19 @@ ACTION_ISAPI_REQUEST_SCHEMA = vol.Schema(
         vol.Required("method"): str,
         vol.Required("path"): str,
         vol.Optional("payload"): str,
+    }
+)
+
+PTZ_ACTIONS = ("pan", "tilt", "zoom", "stop", "home")
+PTZ_DIRECTIONS = ("left", "right", "up", "down", "in", "out")
+
+ACTION_PTZ_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_CONFIG_ENTRY_ID): str,
+        vol.Required("entity_id"): str,
+        vol.Required("action"): vol.In(PTZ_ACTIONS),
+        vol.Optional("direction"): vol.In(PTZ_DIRECTIONS),
+        vol.Optional("speed"): vol.All(int, vol.Range(min=1, max=10)),
     }
 )
 

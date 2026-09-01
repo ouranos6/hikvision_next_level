@@ -64,6 +64,16 @@ class HikvisionDevice(ISAPIClient):
         super().__init__(host, username, password, verify_ssl, rtsp_port_forced, session)
 
         self.events_info: list[EventInfo] = []
+        self.capabilities_registry = None
+        self._last_event_images: dict[int, bytes] = {}
+
+    def set_last_event_image(self, camera_id: int, image: bytes) -> None:
+        """Store only the latest event JPEG for one camera channel."""
+        self._last_event_images[camera_id] = image
+
+    def get_last_event_image(self, camera_id: int) -> bytes | None:
+        """Return the latest event JPEG for one camera channel."""
+        return self._last_event_images.get(camera_id)
 
     async def init_coordinators(self):
         """Initialize coordinators."""

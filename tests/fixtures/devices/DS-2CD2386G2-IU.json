@@ -1733,7 +1733,10 @@
                   "SVC": {
                     "enabled": "false"
                   },
-                  "PacketType": ["PS", "RTP"],
+                  "PacketType": [
+                    "PS",
+                    "RTP"
+                  ],
                   "smoothing": "50",
                   "H265Profile": "Main",
                   "SmartCodec": {
@@ -1810,7 +1813,10 @@
                   "SVC": {
                     "enabled": "false"
                   },
-                  "PacketType": ["PS", "RTP"],
+                  "PacketType": [
+                    "PS",
+                    "RTP"
+                  ],
                   "smoothing": "50",
                   "H265Profile": "Main"
                 },
@@ -1821,6 +1827,57 @@
                 }
               }
             ]
+          }
+        }
+      },
+      "Image/channels/1/capabilities": {
+        "response": {
+          "ImageChannel": {
+            "@version": "2.0",
+            "@xmlns": "http://www.isapi.org/ver20/XMLSchema",
+            "supplementLightMode": {
+              "@opt": "off,ir,white,smart"
+            },
+            "supplementLightBrightness": {
+              "@min": "1",
+              "@max": "100",
+              "@step": "1"
+            },
+            "brightness": {
+              "@min": "0",
+              "@max": "100",
+              "@step": "1"
+            },
+            "contrast": {
+              "@min": "0",
+              "@max": "100",
+              "@step": "1"
+            },
+            "saturation": {
+              "@min": "0",
+              "@max": "100",
+              "@step": "1"
+            },
+            "sharpness": {
+              "@min": "0",
+              "@max": "100",
+              "@step": "1"
+            },
+            "defog": {
+              "@opt": "true,false"
+            }
+          }
+        }
+      },
+      "Image/channels/1": {
+        "response": {
+          "ImageChannel": {
+            "@version": "2.0",
+            "@xmlns": "http://www.isapi.org/ver20/XMLSchema",
+            "videoInputChannelID": "1",
+            "channelName": "yard",
+            "supplementLightMode": "off",
+            "supplementLightBrightness": "50"
           }
         }
       }

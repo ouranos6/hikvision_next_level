@@ -54,6 +54,12 @@
       },
       "io": {
         "name": "Alarm Input {io_port_id}"
+      },
+      "person": {
+        "name": "Person"
+      },
+      "vehicle": {
+        "name": "Vehicle"
       }
     },
     "switch": {
@@ -89,6 +95,12 @@
       },
       "io": {
         "name": "Alarm Input {io_port_id}"
+      },
+      "detect_human": {
+        "name": "Detect Human"
+      },
+      "detect_vehicle": {
+        "name": "Detect Vehicle"
       }
     },
     "camera": {
@@ -119,9 +131,23 @@
         "name": "Notifications Host Path"
       }
     },
+    "number": {
+      "motion_sensitivity": {
+        "name": "Motion Sensitivity"
+      },
+      "motion_start_delay": {
+        "name": "Motion Start Trigger Delay"
+      },
+      "motion_end_delay": {
+        "name": "Motion End Trigger Delay"
+      }
+    },
     "image": {
       "snapshot": {
         "name": "{camera} Snapshot"
+      },
+      "last_event": {
+        "name": "Last Event"
       }
     }
   }

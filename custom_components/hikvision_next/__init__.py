@@ -19,6 +19,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DEFAULT_LEGACY_EVENT_PORT, DOMAIN
+from .capabilities import HikvisionCapabilityDiscovery
 from .hikvision_device import HikvisionDevice
 from .isapi import ISAPIUnauthorizedError
 from .legacy_http import HikvisionLegacyHttpListener
@@ -30,6 +31,8 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.CAMERA,
+    Platform.NUMBER,
+    Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
     Platform.IMAGE,
@@ -79,6 +82,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HikvisionConfigEntry) ->
         raise ConfigEntryNotReady(msg) from ex
 
     entry.runtime_data = device
+
+    try:
+        device.capabilities_registry = await HikvisionCapabilityDiscovery().async_discover(
+            device, device.system_capabilities
+        )
+    except Exception as ex:  # pylint: disable=broad-except
+        _LOGGER.debug("Capability discovery failed for %s: %s", device.host, ex)
+        device.capabilities_registry = None
 
     await device.init_coordinators()
 

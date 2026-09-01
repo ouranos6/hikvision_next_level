@@ -48,6 +48,11 @@ Node = dict[str, Any]
 _LOGGER = logging.getLogger(__name__)
 
 
+def _format_isapi_number(value: float) -> str:
+    """Format a HA number without changing integral ISAPI values to decimals."""
+    return str(int(value)) if float(value).is_integer() else str(value)
+
+
 class ISAPIClient:
     """Hikvision ISAPI client."""
 
@@ -75,6 +80,7 @@ class ISAPIClient:
 
         self.device_info = ISAPIDeviceInfo()
         self.capabilities = CapabilitiesInfo()
+        self.system_capabilities: dict[str, Any] = {}
         self.cameras: list[IPCamera | AnalogCamera] = []
         self.supported_events: list[EventInfo] = []
         self.storage: list[StorageInfo] = []
@@ -99,6 +105,7 @@ class ISAPIClient:
         """Get device all data."""
         await self.get_device_info()
         capabilities = (await self.request(GET, "System/capabilities")).get("DeviceCap", {})
+        self.system_capabilities = capabilities
 
         self.capabilities.analog_cameras_inputs = int(deep_get(capabilities, "SysCap.VideoCap.videoInputPortNums", 0))
         self.capabilities.digital_cameras_inputs = int(deep_get(capabilities, "RacmCap.inputProxyNums", 0))
@@ -648,6 +655,149 @@ class ISAPIClient:
         """Reboot device."""
         await self.request(PUT, "System/reboot", present="xml")
 
+    async def get_image_channel(self, channel_id: int) -> dict[str, Any] | None:
+        """Get image channel settings for a camera."""
+        return await self.request(GET, f"Image/channels/{channel_id}")
+
+    async def set_supplement_light_mode(self, channel_id: int, mode: str) -> None:
+        """Set supplement light mode for a camera channel."""
+        data = await self.request(GET, f"Image/channels/{channel_id}")
+        image_channel = deep_get(data, "ImageChannel", {})
+        if not image_channel:
+            raise ValueError(f"Image channel {channel_id} did not return ImageChannel settings")
+        image_channel["supplementLightMode"] = mode
+        xml = xmltodict.unparse(data)
+        await self.request(PUT, f"Image/channels/{channel_id}", present="xml", data=xml)
+
+    async def set_supplement_light_brightness(self, channel_id: int, brightness: int) -> None:
+        """Set supplement light brightness for a camera channel."""
+        data = await self.request(GET, f"Image/channels/{channel_id}")
+        image_channel = deep_get(data, "ImageChannel", {})
+        if not image_channel:
+            raise ValueError(f"Image channel {channel_id} did not return ImageChannel settings")
+        image_channel["supplementLightBrightness"] = str(brightness)
+        xml = xmltodict.unparse(data)
+        await self.request(PUT, f"Image/channels/{channel_id}", present="xml", data=xml)
+
+    async def get_motion_detection(self, channel_id: int) -> dict[str, Any]:
+        """Get one camera channel's complete motion-detection configuration."""
+        data = await self.request(
+            GET, f"System/Video/inputs/channels/{channel_id}/motionDetection"
+        )
+        if not deep_get(data, "MotionDetection"):
+            raise ValueError(f"Motion detection for channel {channel_id} did not return settings")
+        return data
+
+    async def set_motion_detection_number(
+        self, channel_id: int, setting: str, value: float
+    ) -> None:
+        """Set one advertised motion numeric setting while preserving its XML."""
+        data = await self.get_motion_detection(channel_id)
+        motion = deep_get(data, "MotionDetection")
+        if setting == "sensitivity":
+            layout = motion.get("MotionDetectionLayout")
+            if not isinstance(layout, dict) or "sensitivityLevel" not in layout:
+                raise ValueError(f"Motion sensitivity is unavailable for channel {channel_id}")
+            layout["sensitivityLevel"] = _format_isapi_number(value)
+        elif setting in {"start_delay", "end_delay"}:
+            field = "startTriggerTime" if setting == "start_delay" else "endTriggerTime"
+            if field not in motion:
+                raise ValueError(f"Motion {setting} is unavailable for channel {channel_id}")
+            motion[field] = _format_isapi_number(value)
+        else:
+            raise ValueError(f"Unsupported motion numeric setting: {setting}")
+        xml = xmltodict.unparse(data)
+        await self.request(
+            PUT,
+            f"System/Video/inputs/channels/{channel_id}/motionDetection",
+            present="xml",
+            data=xml,
+        )
+
+    async def set_motion_detection_target_filter(
+        self, channel_id: int, target: str, enabled: bool
+    ) -> None:
+        """Enable or disable one explicitly advertised motion target type."""
+        if target not in {"human", "vehicle"}:
+            raise ValueError(f"Unsupported motion target filter: {target}")
+        data = await self.get_motion_detection(channel_id)
+        layout = deep_get(data, "MotionDetection.MotionDetectionLayout")
+        if not isinstance(layout, dict) or "targetType" not in layout:
+            raise ValueError(f"Motion target filtering is unavailable for channel {channel_id}")
+        raw_targets = layout["targetType"]
+        if not isinstance(raw_targets, str):
+            raise ValueError(f"Motion target filtering has an invalid value for channel {channel_id}")
+        targets = {value.strip().lower() for value in raw_targets.split(",") if value.strip()}
+        if enabled:
+            targets.add(target)
+        else:
+            targets.discard(target)
+        # The endpoint accepts the same comma-separated targetType format it
+        # returns. Keep a stable human/vehicle order for deterministic XML.
+        layout["targetType"] = ",".join(
+            candidate for candidate in ("human", "vehicle") if candidate in targets
+        )
+        xml = xmltodict.unparse(data)
+        await self.request(
+            PUT,
+            f"System/Video/inputs/channels/{channel_id}/motionDetection",
+            present="xml",
+            data=xml,
+        )
+
+    async def get_ptz_presets(self, channel_id: int) -> list[PresetInfo]:
+        """Get PTZ preset list for a camera channel."""
+        data = await self.request(GET, f"PTZCtrl/channels/{channel_id}/presets")
+        presets = deep_get(data, "PTZPresetList.PTZPreset", [])
+        if not isinstance(presets, list):
+            presets = [presets]
+        result = []
+        for preset in presets:
+            token = deep_get(preset, "id", 0)
+            name = deep_get(preset, "name", str(token))
+            if token:
+                result.append(PresetInfo(token=int(token), name=name))
+        return result
+
+    async def goto_ptz_preset(self, channel_id: int, preset_token: int) -> None:
+        """Move a PTZ camera to a preset position."""
+        await self.request(PUT, f"PTZCtrl/channels/{channel_id}/presets/{preset_token}")
+
+    async def ptz_move(
+        self,
+        channel_id: int,
+        pan: float = 0,
+        tilt: float = 0,
+        zoom: float = 0,
+        action: str = "start",
+    ) -> None:
+        """Start or stop PTZ continuous movement.
+
+        pan:  -1 left, +1 right, 0 stop
+        tilt: -1 down, +1 up, 0 stop
+        zoom: -1 out, +1 in, 0 stop
+        action: "start" or "stop"
+        """
+        params = []
+        params.append(f"moveReq.ptzAction={action}")
+        if pan != 0:
+            params.append(f"moveReq.pan={pan}")
+        if tilt != 0:
+            params.append(f"moveReq.tilt={tilt}")
+        if zoom != 0:
+            params.append(f"moveReq.zoom={zoom}")
+        query = "&".join(params)
+        url = f"PTZCtrl/channels/{channel_id}/ptz?{query}"
+        await self.request_bytes(GET, self.get_isapi_url(url))
+
+    async def get_ptz_status(self, channel_id: int) -> dict[str, Any] | None:
+        """Get current PTZ status for a camera channel."""
+        return await self.request(GET, f"PTZCtrl/channels/{channel_id}/status")
+
+    async def goto_ptz_home(self, channel_id: int) -> None:
+        """Move a PTZ camera to its home position."""
+        await self.request(PUT, f"PTZCtrl/channels/{channel_id}/ptz")
+
     async def get_camera_image(
         self,
         stream: CameraStreamInfo,
@@ -655,36 +805,96 @@ class ISAPIClient:
         height: int | None = None,
         attempt: int = 0,
     ):
-        """Get camera snapshot."""
+        """Get camera snapshot.
+
+        Resolution is cached on *stream* (populated during setup via
+        ``get_camera_streams``).  When the resolution is known the snapshot is
+        requested with explicit ``videoResolutionWidth`` / ``videoResolutionHeight``
+        parameters so the device returns the configured main-stream resolution.
+        If that high-resolution request fails, the method automatically falls
+        back to a legacy request without resolution parameters.
+        """
+        data = await self._fetch_camera_image(
+            stream, width, height, attempt, use_resolution=True
+        )
+
+        # If the high-resolution request failed and we were sending resolution
+        # params, fall back to a legacy request without explicit resolution.
+        if (
+            data.lstrip().startswith(b"<?xml")
+            and (not width or width > 100)
+            and attempt == 0
+            and self._has_known_resolution(stream)
+        ):
+            stream_width = int(stream.width) if stream.width else 0
+            stream_height = int(stream.height) if stream.height else 0
+            _LOGGER.debug(
+                "Snapshot with resolution %sx%s failed, falling back to legacy request",
+                stream_width,
+                stream_height,
+            )
+            data = await self._fetch_camera_image(
+                stream, width, height, attempt=99, use_resolution=False
+            )
+
+        return data
+
+    async def _fetch_camera_image(
+        self,
+        stream: CameraStreamInfo,
+        width: int | None = None,
+        height: int | None = None,
+        attempt: int = 0,
+        use_resolution: bool = True,
+    ):
+        """Fetch a camera snapshot, optionally with explicit resolution parameters.
+
+        Handles the known ISAPI error codes:
+        * statusCode 6 (Invalid XML Content) – switch to the proxy URL.
+        * statusCode 3 (Device Error) – retry up to two times.
+        """
         params = {}
-        if not width or width > 100:
+        if use_resolution and (not width or width > 100) and self._has_known_resolution(stream):
             params = {
-                "videoResolutionWidth": stream.width,
-                "videoResolutionHeight": stream.height,
+                "videoResolutionWidth": int(stream.width),
+                "videoResolutionHeight": int(stream.height),
             }
 
         if stream.use_alternate_picture_url:
             url = f"ContentMgmt/StreamingProxy/channels/{stream.id}/picture"
-            full_url = self.get_isapi_url(url)
-            chunks = self.request_bytes(GET, full_url, params=params)
         else:
             url = f"Streaming/channels/{stream.id}/picture"
-            full_url = self.get_isapi_url(url)
-            chunks = self.request_bytes(GET, full_url, params=params)
+        full_url = self.get_isapi_url(url)
+        chunks = self.request_bytes(GET, full_url, params=params)
         data = b"".join([chunk async for chunk in chunks])
 
-        if data.startswith(b"<?xml "):
-            error = xmltodict.parse(data)
-            status_code = int(deep_get(error, "ResponseStatus.statusCode"))
+        if data.lstrip().startswith(b"<?xml"):
+            try:
+                error = xmltodict.parse(data)
+                status_code = int(deep_get(error, "ResponseStatus.statusCode"))
+            except (TypeError, ValueError, xmltodict.expat.ExpatError):
+                return data
             if status_code == 6 and not stream.use_alternate_picture_url:
                 # handle 'Invalid XML Content' for some cameras, use alternate url for still image
                 stream.use_alternate_picture_url = True
-                return await self.get_camera_image(stream, width, height)
+                return await self._fetch_camera_image(
+                    stream, width, height, attempt, use_resolution
+                )
             if status_code == 3 and attempt < 2:
                 # handle 'Device Error', try again
-                return await self.get_camera_image(stream, width, height, attempt + 1)
+                return await self._fetch_camera_image(
+                    stream, width, height, attempt + 1, use_resolution
+                )
 
         return data
+
+    @staticmethod
+    def _has_known_resolution(stream: CameraStreamInfo) -> bool:
+        """Check if the stream has a valid (non-zero) cached resolution."""
+        try:
+            return int(stream.width or 0) > 0 and int(stream.height or 0) > 0
+        except (TypeError, ValueError):
+            return False
 
     def get_stream_source(self, stream: CameraStreamInfo) -> str:
         """Get stream source."""
@@ -717,6 +927,32 @@ class ISAPIClient:
     def get_isapi_url(self, relative_url: str) -> str:
         """Build full ISAPI URL."""
         return f"{self.host}/{self.isapi_prefix}/{relative_url}"
+
+    async def async_get_capability_endpoint(
+        self, endpoint: str
+    ) -> tuple[int, dict[str, Any] | None]:
+        """Read a capability endpoint, returning HTTP status and parsed data without raising."""
+        if not self._auth_method:
+            await self._detect_auth_method()
+
+        full_url = self.get_isapi_url(endpoint)
+        try:
+            response = await self._session.request(
+                GET,
+                full_url,
+                auth=self._auth_method,
+                timeout=self.timeout,
+            )
+        except httpx.HTTPError as ex:
+            _LOGGER.debug("Capability probe failed for %s: %s", endpoint, ex)
+            raise
+
+        if response.status_code == HTTPStatus.OK:
+            return (response.status_code, parse_isapi_response(response, "dict"))
+        _LOGGER.debug(
+            "Capability endpoint %s returned HTTP %s", endpoint, response.status_code
+        )
+        return (response.status_code, None)
 
     async def request(
         self,

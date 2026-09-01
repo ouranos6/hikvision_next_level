@@ -1723,9 +1723,9 @@
                       "dynVideoInputID": "2"
                     },
                     {
-                    "id": "center",
-                    "notificationMethod": "center"
-                  }
+                      "id": "center",
+                      "notificationMethod": "center"
+                    }
                   ]
                 }
               },
@@ -2021,9 +2021,9 @@
                 "eventType": "diskerror",
                 "EventTriggerNotificationList": {
                   "EventTriggerNotification": {
-                      "id": "beep",
-                      "notificationMethod": "beep"
-                    }
+                    "id": "beep",
+                    "notificationMethod": "beep"
+                  }
                 }
               },
               {
@@ -3195,6 +3195,62 @@
             "recogRuleType": "vectorMode",
             "humanMisinfoFilterEnabled": "false",
             "vehicleMisinfoFilterEnabled": "false"
+          }
+        }
+      },
+      "Image/channels/1/capabilities": {
+        "response": {
+          "ImageChannel": {
+            "@version": "2.0",
+            "@xmlns": "http://www.isapi.org/ver20/XMLSchema",
+            "supplementLightMode": {
+              "@opt": "off,ir,white,smart"
+            },
+            "supplementLightBrightness": {
+              "@min": "1",
+              "@max": "100",
+              "@step": "1"
+            }
+          }
+        }
+      },
+      "Image/channels/1": {
+        "response": {
+          "ImageChannel": {
+            "@version": "2.0",
+            "@xmlns": "http://www.isapi.org/ver20/XMLSchema",
+            "videoInputChannelID": "1",
+            "channelName": "garden",
+            "supplementLightMode": "off",
+            "supplementLightBrightness": "50"
+          }
+        }
+      },
+      "Image/channels/3/capabilities": {
+        "response": {
+          "ImageChannel": {
+            "@version": "2.0",
+            "@xmlns": "http://www.isapi.org/ver20/XMLSchema",
+            "supplementLightMode": {
+              "@opt": "off,ir"
+            },
+            "supplementLightBrightness": {
+              "@min": "1",
+              "@max": "100",
+              "@step": "1"
+            }
+          }
+        }
+      },
+      "Image/channels/3": {
+        "response": {
+          "ImageChannel": {
+            "@version": "2.0",
+            "@xmlns": "http://www.isapi.org/ver20/XMLSchema",
+            "videoInputChannelID": "3",
+            "channelName": "front door",
+            "supplementLightMode": "ir",
+            "supplementLightBrightness": "75"
           }
         }
       }
