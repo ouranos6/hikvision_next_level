@@ -27,6 +27,24 @@
     }
   },
   "entity": {
+    "select": {
+      "supplement_light_mode": {
+        "name": "Camera Illumination Mode",
+        "state": {
+          "off": "Off",
+          "close": "Off",
+          "ir": "Infrared",
+          "irLight": "Infrared",
+          "white": "White light",
+          "whiteLight": "White light",
+          "colorVuWhiteLight": "ColorVu white light",
+          "smart": "Smart hybrid",
+          "mixed": "Smart hybrid",
+          "dualLight": "Dual light",
+          "auto": "Automatic"
+        }
+      }
+    },
     "binary_sensor": {
       "motiondetection": {
         "name": "Motion"

@@ -659,25 +659,59 @@ class ISAPIClient:
         """Get image channel settings for a camera."""
         return await self.request(GET, f"Image/channels/{channel_id}")
 
+    async def get_supplement_light(self, channel_id: int) -> dict[str, Any] | None:
+        """Get supplement-light settings, with generic-image fallback for older firmware."""
+        try:
+            data = await self.request(GET, f"Image/channels/{channel_id}/supplementLight")
+        except HTTPStatusError as ex:
+            if ex.response.status_code not in {HTTPStatus.NOT_FOUND, HTTPStatus.METHOD_NOT_ALLOWED}:
+                raise
+            data = None
+        if deep_get(data, "SupplementLight"):
+            return data
+        return await self.get_image_channel(channel_id)
+
     async def set_supplement_light_mode(self, channel_id: int, mode: str) -> None:
-        """Set supplement light mode for a camera channel."""
-        data = await self.request(GET, f"Image/channels/{channel_id}")
+        """Set supplement light mode while preserving firmware-specific fields."""
+        data = await self.get_supplement_light(channel_id)
+        supplement_light = deep_get(data, "SupplementLight", {})
         image_channel = deep_get(data, "ImageChannel", {})
-        if not image_channel:
-            raise ValueError(f"Image channel {channel_id} did not return ImageChannel settings")
-        image_channel["supplementLightMode"] = mode
+        settings = supplement_light or image_channel
+        if not settings:
+            raise ValueError(f"Supplement light {channel_id} did not return settings")
+        settings["supplementLightMode"] = mode
         xml = xmltodict.unparse(data)
-        await self.request(PUT, f"Image/channels/{channel_id}", present="xml", data=xml)
+        endpoint = (
+            f"Image/channels/{channel_id}/supplementLight"
+            if supplement_light
+            else f"Image/channels/{channel_id}"
+        )
+        await self.request(PUT, endpoint, present="xml", data=xml)
 
     async def set_supplement_light_brightness(self, channel_id: int, brightness: int) -> None:
-        """Set supplement light brightness for a camera channel."""
-        data = await self.request(GET, f"Image/channels/{channel_id}")
+        """Set supplement light brightness while preserving firmware-specific fields."""
+        data = await self.get_supplement_light(channel_id)
+        supplement_light = deep_get(data, "SupplementLight", {})
         image_channel = deep_get(data, "ImageChannel", {})
-        if not image_channel:
-            raise ValueError(f"Image channel {channel_id} did not return ImageChannel settings")
-        image_channel["supplementLightBrightness"] = str(brightness)
+        settings = supplement_light or image_channel
+        if not settings:
+            raise ValueError(f"Supplement light {channel_id} did not return settings")
+        brightness_field = next(
+            (
+                field
+                for field in ("whiteLightBrightness", "supplementLightBrightness", "lightBrightness")
+                if field in settings
+            ),
+            "whiteLightBrightness",
+        )
+        settings[brightness_field] = str(brightness)
         xml = xmltodict.unparse(data)
-        await self.request(PUT, f"Image/channels/{channel_id}", present="xml", data=xml)
+        endpoint = (
+            f"Image/channels/{channel_id}/supplementLight"
+            if supplement_light
+            else f"Image/channels/{channel_id}"
+        )
+        await self.request(PUT, endpoint, present="xml", data=xml)
 
     async def get_motion_detection(self, channel_id: int) -> dict[str, Any]:
         """Get one camera channel's complete motion-detection configuration."""

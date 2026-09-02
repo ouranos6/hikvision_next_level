@@ -69,8 +69,8 @@ class SupplementLightModeSelect(SelectEntity):
     async def _async_update_current_option(self) -> None:
         """Read current supplement light mode from device."""
         try:
-            data = await self._device.get_image_channel(self._camera_id)
-            self._current_option = deep_get(data, "ImageChannel.supplementLightMode")
+            data = await self._device.get_supplement_light(self._camera_id)
+            self._current_option = deep_get(data, "SupplementLight.supplementLightMode")
         except Exception:
             self._current_option = None
 

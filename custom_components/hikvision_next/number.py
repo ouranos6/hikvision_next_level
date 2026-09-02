@@ -100,8 +100,12 @@ class SupplementLightBrightnessNumber(NumberEntity):
     async def _async_update_value(self) -> None:
         """Read current supplement light brightness from device."""
         try:
-            data = await self._device.get_image_channel(self._camera_id)
-            raw = deep_get(data, "ImageChannel.supplementLightBrightness")
+            data = await self._device.get_supplement_light(self._camera_id)
+            raw = (
+                deep_get(data, "SupplementLight.whiteLightBrightness")
+                or deep_get(data, "SupplementLight.supplementLightBrightness")
+                or deep_get(data, "SupplementLight.lightBrightness")
+            )
             if raw is not None:
                 self._current_value = float(raw)
         except Exception:

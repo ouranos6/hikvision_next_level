@@ -152,8 +152,13 @@ class _MockDevice:
         self._set_errors = set_errors or {}
         self.device_info = MockDeviceInfo()
 
-        async def _get_image_channel(channel_id):
-            return self._image_responses.pop(0) if self._image_responses else {}
+        async def _get_supplement_light(channel_id):
+            data = self._image_responses.pop(0) if self._image_responses else {}
+            # Existing entity tests used the generic ImageChannel fixture;
+            # keep those fixtures useful while production reads SupplementLight.
+            if "ImageChannel" in data:
+                return {"SupplementLight": data["ImageChannel"]}
+            return data
 
         async def _set_mode(channel_id, mode):
             key = (channel_id, "mode")
@@ -167,7 +172,7 @@ class _MockDevice:
                 raise self._set_errors[key]
             self._brightness_set = brightness
 
-        self.get_image_channel = AsyncMock(side_effect=_get_image_channel)
+        self.get_supplement_light = AsyncMock(side_effect=_get_supplement_light)
         self.set_supplement_light_mode = AsyncMock(side_effect=_set_mode)
         self.set_supplement_light_brightness = AsyncMock(side_effect=_set_brightness)
         self.handle_exception = MagicMock()
@@ -193,6 +198,42 @@ def _image_xml(modes: str, brightness_min=1, brightness_max=100, brightness_step
             },
         }
     }
+
+
+def _supplement_light_xml(modes: str, brightness_min=1, brightness_max=100, brightness_step=1):
+    """Build a dedicated ColorVu supplement-light capability response."""
+    return {
+        "SupplementLight": {
+            "supplementLightMode": {"@opt": modes},
+            "whiteLightBrightness": {
+                "@min": str(brightness_min),
+                "@max": str(brightness_max),
+                "@step": str(brightness_step),
+            },
+        }
+    }
+
+
+def test_discover_colorvu_supplement_light_resource():
+    """ColorVu uses the dedicated supplementLight resource and vendor mode names."""
+    camera = MockCamera(id=1, name="cam", model="DS-2CD2T87G2-L", streams=[])
+    device = MockCapabilityDevice(
+        cameras=[camera],
+        endpoint_responses={
+            "Image/channels/1/capabilities": (HTTPStatus.NOT_FOUND, None),
+            "Image/channels/1/supplementLight/capabilities": (
+                HTTPStatus.OK,
+                _supplement_light_xml("colorVuWhiteLight,irLight,close", 0, 100, 5),
+            ),
+        },
+    )
+
+    caps = _run_async(HikvisionCapabilityDiscovery().async_discover(device, {})).for_channel(1)
+
+    assert caps.supplement_light_mode.options == ("colorVuWhiteLight", "irLight", "close")
+    assert caps.white_light is CapabilityState.SUPPORTED
+    assert caps.ir_light is CapabilityState.SUPPORTED
+    assert caps.light_brightness == NumericCapability(CapabilityState.SUPPORTED, 0, 100, 5)
 
 
 def test_discover_ir_only_camera():

@@ -187,8 +187,9 @@ class HikvisionCapabilityDiscovery:
             self._apply_system_channel_facts(capabilities, system)
         self._apply_event_facts(capabilities, device.supported_events, int(camera.id))
 
-        image_probe, ptz_probe, audio_probe, motion_probe = await asyncio.gather(
+        image_probe, supplement_light_probe, ptz_probe, audio_probe, motion_probe = await asyncio.gather(
             self._async_probe(device, f"Image/channels/{camera.id}/capabilities"),
+            self._async_probe(device, f"Image/channels/{camera.id}/supplementLight/capabilities"),
             self._async_probe(device, f"PTZCtrl/channels/{camera.id}/capabilities"),
             self._async_probe(device, f"System/Audio/channels/{camera.id}/capabilities"),
             self._async_probe(
@@ -197,6 +198,7 @@ class HikvisionCapabilityDiscovery:
             ),
         )
         self._apply_image_probe(capabilities, image_probe)
+        self._apply_supplement_light_probe(capabilities, supplement_light_probe)
         self._apply_ptz_probe(capabilities, ptz_probe)
         self._apply_audio_probe(capabilities, audio_probe)
         self._apply_motion_probe(capabilities, motion_probe)
@@ -342,6 +344,38 @@ class HikvisionCapabilityDiscovery:
         capabilities.ir_light = _state_for_option(options, "ir", "infrared")
         capabilities.white_light = _state_for_option(options, "white", "whitelight")
         capabilities.smart_hybrid_light = _state_for_option(options, "smart", "hybrid")
+
+    @staticmethod
+    def _apply_supplement_light_probe(capabilities: HikvisionCapabilities, probe: _ProbeResult) -> None:
+        """Apply the dedicated supplement-light resource used by ColorVu firmware.
+
+        Some cameras expose light controls only at
+        ``Image/channels/{id}/supplementLight``.  Keep generic image capability
+        results as a fallback when that optional resource is unavailable.
+        """
+        if probe.state is not CapabilityState.SUPPORTED:
+            return
+
+        light_mode = _find_select(probe.data, "supplementLightMode", "lightMode")
+        if light_mode.state is CapabilityState.SUPPORTED:
+            capabilities.supplement_light_mode = light_mode
+            options = {option.lower() for option in light_mode.options}
+            capabilities.ir_light = _state_for_option(options, "ir", "infrared", "irlight")
+            capabilities.white_light = _state_for_option(
+                options, "white", "whitelight", "colorvuwhitelight"
+            )
+            capabilities.smart_hybrid_light = _state_for_option(
+                options, "smart", "hybrid", "mixed", "duallight", "eventintelligence"
+            )
+
+        light_brightness = _find_numeric(
+            probe.data,
+            "supplementLightBrightness",
+            "lightBrightness",
+            "whiteLightBrightness",
+        )
+        if light_brightness.state is CapabilityState.SUPPORTED:
+            capabilities.light_brightness = light_brightness
 
 
 def _stream_capabilities(streams: list[CameraStreamInfo]) -> StreamCapabilities:

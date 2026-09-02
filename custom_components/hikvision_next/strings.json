@@ -17,7 +17,20 @@
   "entity": {
     "select": {
       "supplement_light_mode": {
-        "name": "Supplement Light Mode"
+        "name": "Camera Illumination Mode",
+        "state": {
+          "off": "Off",
+          "close": "Off",
+          "ir": "Infrared",
+          "irLight": "Infrared",
+          "white": "White light",
+          "whiteLight": "White light",
+          "colorVuWhiteLight": "ColorVu white light",
+          "smart": "Smart hybrid",
+          "mixed": "Smart hybrid",
+          "dualLight": "Dual light",
+          "auto": "Automatic"
+        }
       }
     },
     "number": {

@@ -23,5 +23,25 @@
       "insufficient_permission": "Accès refusé, veuillez vérifier les permissions de l'utilisateur",
       "unknown": "Erreur innatendue"
     }
+  },
+  "entity": {
+    "select": {
+      "supplement_light_mode": {
+        "name": "Mode d’éclairage de la caméra",
+        "state": {
+          "off": "Éteint",
+          "close": "Éteint",
+          "ir": "Infrarouge",
+          "irLight": "Infrarouge",
+          "white": "Lumière blanche",
+          "whiteLight": "Lumière blanche",
+          "colorVuWhiteLight": "Lumière blanche ColorVu",
+          "smart": "Mode intelligent",
+          "mixed": "Mode intelligent",
+          "dualLight": "Double éclairage",
+          "auto": "Automatique"
+        }
+      }
+    }
   }
 }
