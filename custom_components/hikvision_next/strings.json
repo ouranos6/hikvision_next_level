@@ -34,10 +34,10 @@
       }
     },
     "number": {
-      "ir__light_brightness": {
+      "ir_light_brightness": {
         "name": "IR Light Brightness"
       },
-      "white__light_brightness": {
+      "white_light_brightness": {
         "name": "White Light Brightness"
       },
       "motion_sensitivity": {

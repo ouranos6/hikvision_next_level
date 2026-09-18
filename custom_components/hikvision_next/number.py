@@ -84,7 +84,7 @@ class SupplementLightBrightnessNumber(NumberEntity):
         )
         self.entity_id = ENTITY_ID_FORMAT.format(self._attr_unique_id)
         self._attr_device_info = device.hass_device_info(camera_id)
-        self._attr_translation_key = light_type + "__light_brightness"
+        self._attr_translation_key = light_type + "_light_brightness"
 
         self._attr_native_min_value = light_caps.minimum or 0
         self._attr_native_max_value = light_caps.maximum or 100
