@@ -22,13 +22,13 @@
           "off": "Off",
           "close": "Off",
           "ir": "Infrared",
-          "irLight": "Infrared",
+          "ir_light": "Infrared",
           "white": "White light",
-          "whiteLight": "White light",
-          "colorVuWhiteLight": "ColorVu white light",
+          "white_light": "White light",
+          "colorvu_white_light": "ColorVu white light",
           "smart": "Smart hybrid",
           "mixed": "Smart hybrid",
-          "dualLight": "Dual light",
+          "dual_light": "Dual light",
           "auto": "Automatic"
         }
       }

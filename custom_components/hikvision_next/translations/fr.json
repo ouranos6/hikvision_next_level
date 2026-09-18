@@ -32,13 +32,13 @@
           "off": "Éteint",
           "close": "Éteint",
           "ir": "Infrarouge",
-          "irLight": "Infrarouge",
+          "ir_light": "Infrarouge",
           "white": "Lumière blanche",
-          "whiteLight": "Lumière blanche",
-          "colorVuWhiteLight": "Lumière blanche ColorVu",
+          "white_light": "Lumière blanche",
+          "colorvu_white_light": "Lumière blanche ColorVu",
           "smart": "Mode intelligent",
           "mixed": "Mode intelligent",
-          "dualLight": "Double éclairage",
+          "dual_light": "Double éclairage",
           "auto": "Automatique"
         }
       }

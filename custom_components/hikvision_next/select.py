@@ -13,6 +13,18 @@ from .hikvision_device import HikvisionDevice
 from .isapi.utils import deep_get
 
 
+# Home Assistant translation state keys must use lowercase letters, digits,
+# hyphens, or underscores. Keep the vendor's camelCase values at the ISAPI
+# boundary and expose stable, translatable select options to Home Assistant.
+_DEVICE_MODE_TO_OPTION = {
+    "irLight": "ir_light",
+    "whiteLight": "white_light",
+    "colorVuWhiteLight": "colorvu_white_light",
+    "dualLight": "dual_light",
+}
+_OPTION_TO_DEVICE_MODE = {option: mode for mode, option in _DEVICE_MODE_TO_OPTION.items()}
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: HikvisionConfigEntry,
@@ -57,7 +69,10 @@ class SupplementLightModeSelect(SelectEntity):
         self.entity_id = ENTITY_ID_FORMAT.format(self._attr_unique_id)
         self._attr_device_info = device.hass_device_info(camera_id)
 
-        self._attr_options = list(caps.supplement_light_mode.options)
+        self._attr_options = [
+            _DEVICE_MODE_TO_OPTION.get(option, option)
+            for option in caps.supplement_light_mode.options
+        ]
 
         self._current_option: str | None = None
 
@@ -70,14 +85,17 @@ class SupplementLightModeSelect(SelectEntity):
         """Read current supplement light mode from device."""
         try:
             data = await self._device.get_supplement_light(self._camera_id)
-            self._current_option = deep_get(data, "SupplementLight.supplementLightMode")
+            device_option = deep_get(data, "SupplementLight.supplementLightMode")
+            self._current_option = _DEVICE_MODE_TO_OPTION.get(device_option, device_option)
         except Exception:
             self._current_option = None
 
     async def async_select_option(self, option: str) -> None:
         """Set supplement light mode."""
         try:
-            await self._device.set_supplement_light_mode(self._camera_id, option)
+            await self._device.set_supplement_light_mode(
+                self._camera_id, _OPTION_TO_DEVICE_MODE.get(option, option)
+            )
             self._current_option = option
             self.async_write_ha_state()
         except Exception as ex:
